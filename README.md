@@ -44,8 +44,8 @@ The tool analyzes passwords based on the following criteria:
 
 1. **Download the files:**
 ```bash
-git clone https://github.com/Can-Ozan/Password-Strength-Checker.git
-cd Password-Strength-Checker
+git clone 
+cd password-strength-checker
 ```
 
 2. **Open in browser:**
@@ -253,6 +253,5 @@ If you like this project, don't forget to give it a star on GitHub! ⭐
 - ✅ Random password generator
 
 ---
-
 
 **Happy Coding!** 🚀
