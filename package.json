@@ -2,11 +2,14 @@
   "name": "password-strength-checker",
   "version": "1.0.0",
   "description": "Modern, real-time password strength analyzer built with TypeScript",
+  "homepage": "https://Can-Ozan.github.io/Password-Strength-Checker",
   "main": "index.html",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "keywords": [
     "password",
@@ -18,6 +21,7 @@
   "author": "Password Strength Checker",
   "license": "MIT",
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "typescript": "^5.2.2",
     "vite": "^7.2.7"
   }
