@@ -1,0 +1,9 @@
+{
+  "name": "VaultCheck Password Security",
+  "short_name": "VaultCheck",
+  "start_url": "/Password-Strength-Checker/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": []
+}

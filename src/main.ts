@@ -1,285 +1,96 @@
-import { PasswordChecker } from './PasswordChecker';
-import { StrengthMeter } from './StrengthMeter';
-import { UI } from './UI';
+import { PasswordChecker, PasswordAnalysis } from './PasswordChecker';
 
-/**
- * Generate random strong password
- * @param length Password length
- * @returns Random password
- */
-function generateRandomPassword(length: number = 16): string {
-    const charset = {
-        lowercase: 'abcdefghijklmnopqrstuvwxyz',
-        uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        numbers: '0123456789',
-        special: '!@#$%^&*()_+-=[]{}|;:,.<>?'
-    };
-    
-    // All characters combined
-    const allChars = 
-        charset.lowercase + 
-        charset.uppercase + 
-        charset.numbers + 
-        charset.special;
-    
-    let password = '';
-    
-    // Ensure at least one character from each category
-    password += getRandomChar(charset.lowercase);
-    password += getRandomChar(charset.uppercase);
-    password += getRandomChar(charset.numbers);
-    password += getRandomChar(charset.special);
-    
-    // Fill remaining characters randomly
-    for (let i = 4; i < length; i++) {
-        password += getRandomChar(allChars);
-    }
-    
-    // Shuffle the characters
-    return shuffleString(password);
-}
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const chars = { lowercase: 'abcdefghijklmnopqrstuvwxyz', uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', numbers: '0123456789', symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?' };
 
-/**
- * Get random character from string
- */
-function getRandomChar(str: string): string {
-    return str[Math.floor(Math.random() * str.length)];
-}
+class VaultCheckApp {
+    private passwordInput = $('passwordInput') as HTMLInputElement;
+    private compareInput = $('compareInput') as HTMLInputElement;
+    private currentAnalysis: PasswordAnalysis = PasswordChecker.analyze('');
 
-/**
- * Shuffle string characters
- */
-function shuffleString(str: string): string {
-    const array = str.split('');
-    
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    
-    return array.join('');
-}
-
-/**
- * Main application class
- */
-class PasswordStrengthCheckerApp {
-    // Definite assignment assertion
-    private passwordInput!: HTMLInputElement;
-    private togglePasswordBtn!: HTMLButtonElement;
-    private generatePasswordBtn!: HTMLButtonElement;
-    
-    private strengthMeter!: StrengthMeter;
-    private ui!: UI;
-    
-    // Analysis debounce timer
-    private analysisTimer: number | null = null;
-    
     constructor() {
-        this.initializeElements();
-        this.initializeModules();
-        this.setupEventListeners();
-        this.initializeUI();
-    }
-    
-    /**
-     * Initialize DOM elements
-     */
-    private initializeElements(): void {
-        const passwordInput = document.getElementById('passwordInput');
-        const togglePasswordBtn = document.getElementById('togglePassword');
-        const generatePasswordBtn = document.getElementById('generatePassword');
-        
-        // Check if elements exist
-        if (!passwordInput || !togglePasswordBtn || !generatePasswordBtn) {
-            throw new Error('Required DOM elements not found');
+        this.bindEvents();
+        this.loadHistory();
+        this.analyze();
+        const isLocalDevelopment = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (isLocalDevelopment && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
+            caches.keys().then(keys => keys.filter(key => key.startsWith('vaultcheck-')).forEach(key => caches.delete(key)));
         }
-        
-        this.passwordInput = passwordInput as HTMLInputElement;
-        this.togglePasswordBtn = togglePasswordBtn as HTMLButtonElement;
-        this.generatePasswordBtn = generatePasswordBtn as HTMLButtonElement;
-    }
-    
-    /**
-     * Initialize modules
-     */
-    private initializeModules(): void {
-        this.strengthMeter = new StrengthMeter(
-            'strengthBar',
-            'strengthLevel',
-            'scoreValue'
-        );
-        
-        this.ui = new UI(
-            'criteriaList',
-            'feedbackContent',
-            'suggestionsContent',
-            'timeToCrack'
-        );
-    }
-    
-    /**
-     * Setup event listeners
-     */
-    private setupEventListeners(): void {
-        // Password input change
-        this.passwordInput.addEventListener('input', () => {
-            this.handlePasswordChange();
-        });
-        
-        // Password visibility toggle
-        this.togglePasswordBtn.addEventListener('click', () => {
-            this.togglePasswordVisibility();
-        });
-        
-        // Random password generation
-        this.generatePasswordBtn.addEventListener('click', () => {
-            this.generateAndSetPassword();
-        });
-        
-        // Focus on input when page loads
-        window.addEventListener('DOMContentLoaded', () => {
-            this.passwordInput.focus();
-        });
-    }
-    
-    /**
-     * Initialize UI
-     */
-    private initializeUI(): void {
-        this.ui.reset();
-        this.strengthMeter.reset();
-    }
-    
-    /**
-     * Handle password change with debounce
-     */
-    private handlePasswordChange(): void {
-        // Clear previous timer
-        if (this.analysisTimer) {
-            clearTimeout(this.analysisTimer);
+        if (!isLocalDevelopment && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => undefined);
         }
-        
-        // Set new timer (100ms debounce)
-        this.analysisTimer = window.setTimeout(() => {
-            this.analyzePassword();
-        }, 100);
     }
-    
-    /**
-     * Analyze password and update UI
-     */
-    private analyzePassword(): void {
+
+    private bindEvents(): void {
+        this.passwordInput.addEventListener('input', () => this.analyze());
+        $('togglePassword').addEventListener('click', () => this.toggleVisibility(this.passwordInput, $('togglePassword')));
+        $('copyPassword').addEventListener('click', () => this.copy(this.passwordInput.value));
+        $('generatePassword').addEventListener('click', () => this.generate(true));
+        $('regeneratePassword').addEventListener('click', () => this.generate(false));
+        $('copyGenerated').addEventListener('click', () => this.copy($('generatedPassword').textContent || ''));
+        $('lengthRange').addEventListener('input', () => { $('lengthValue').textContent = ($('lengthRange') as HTMLInputElement).value; });
+        $('compareToggle').addEventListener('click', () => { $('comparePanel').toggleAttribute('hidden'); this.compareInput.focus(); });
+        this.compareInput.addEventListener('input', () => this.compare());
+        const themeToggle = $('themeToggle');
+        const savedTheme = localStorage.getItem('vaultcheck-theme');
+        if (savedTheme === 'light') document.body.classList.add('light-theme');
+        themeToggle.setAttribute('aria-pressed', String(document.body.classList.contains('light-theme')));
+        themeToggle.addEventListener('click', () => {
+            const isLight = document.body.classList.toggle('light-theme');
+            localStorage.setItem('vaultcheck-theme', isLight ? 'light' : 'dark');
+            themeToggle.setAttribute('aria-pressed', String(isLight));
+        });
+        $('languageSelect').addEventListener('change', () => this.translate(($('languageSelect') as HTMLSelectElement).value));
+    }
+
+    private analyze(): void {
         const password = this.passwordInput.value;
-        
-        // Reset UI if password is empty
-        if (!password || password.length === 0) {
-            this.ui.reset();
-            this.strengthMeter.reset();
-            return;
-        }
-        
-        // Analyze password
-        const analysis = PasswordChecker.analyze(password);
-        
-        // Update strength meter
-        this.strengthMeter.update(analysis.score, analysis.level);
-        
-        // Update UI
-        this.ui.updateAll(analysis, password);
+        this.currentAnalysis = PasswordChecker.analyze(password);
+        const analysis = this.currentAnalysis;
+        $('strengthBar').style.width = `${analysis.score}%`;
+        $('strengthBar').className = `strength-bar ${analysis.level.replace(' ', '-')}`;
+        $('strengthLevel').textContent = this.label(analysis.level);
+        $('scoreValue').textContent = String(analysis.score);
+        $('entropyValue').textContent = `${this.entropy(password)} bits`;
+        $('timeToCrack').textContent = password ? PasswordChecker.estimateTimeToCrack(password, analysis.score) : 'Bekliyor';
+        new UIAdapter().render(analysis, password);
+        this.checkBreach(password);
     }
-    
-    /**
-     * Toggle password visibility
-     */
-    private togglePasswordVisibility(): void {
-        const type = this.passwordInput.type;
-        const icon = this.togglePasswordBtn.querySelector('i') as HTMLElement;
-        
-        if (type === 'password') {
-            this.passwordInput.type = 'text';
-            icon.className = 'fas fa-eye-slash';
-            this.togglePasswordBtn.setAttribute('aria-label', 'Hide password');
-        } else {
-            this.passwordInput.type = 'password';
-            icon.className = 'fas fa-eye';
-            this.togglePasswordBtn.setAttribute('aria-label', 'Show password');
-        }
+
+    private entropy(password: string): number { const pool = (/[a-z]/.test(password) ? 26 : 0) + (/[A-Z]/.test(password) ? 26 : 0) + (/\d/.test(password) ? 10 : 0) + (/[^a-zA-Z0-9]/.test(password) ? 33 : 0); return password ? Math.round(password.length * Math.log2(pool || 1)) : 0; }
+    private label(level: string): string { return ({ empty: 'Değerlendiriliyor...', 'very weak': 'Çok zayıf', weak: 'Zayıf', medium: 'Orta', strong: 'Güçlü', 'very strong': 'Çok güçlü' } as Record<string, string>)[level] || level; }
+    private toggleVisibility(input: HTMLInputElement, button: HTMLElement): void { input.type = input.type === 'password' ? 'text' : 'password'; button.textContent = input.type === 'password' ? 'GÖSTER' : 'GİZLE'; }
+    private secureRandom(max: number): number { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0] % max; }
+    private generate(useMainInput: boolean): void {
+        const length = Number(($('lengthRange') as HTMLInputElement).value);
+        const selected = Object.entries(chars).filter(([key]) => ($(`${key}Option`) as HTMLInputElement).checked).map(([, value]) => value);
+        if (!selected.length) return;
+        const pool = selected.join('');
+        let password = selected.map(set => set[this.secureRandom(set.length)]).join('');
+        while (password.length < length) password += pool[this.secureRandom(pool.length)];
+        password = password.split('').sort(() => this.secureRandom(2) - .5).join('');
+        $('generatedPassword').textContent = password;
+        this.saveHistory(password);
+        if (useMainInput) { this.passwordInput.value = password; this.passwordInput.type = 'text'; $('togglePassword').textContent = 'GİZLE'; this.analyze(); }
     }
-    
-    /**
-     * Generate random password and set it in input
-     */
-    private generateAndSetPassword(): void {
-        const randomPassword = generateRandomPassword(16);
-        this.passwordInput.value = randomPassword;
-        this.passwordInput.type = 'text';
-        
-        // Update icon
-        const icon = this.togglePasswordBtn.querySelector('i') as HTMLElement;
-        icon.className = 'fas fa-eye-slash';
-        this.togglePasswordBtn.setAttribute('aria-label', 'Hide password');
-        
-        // Analyze the password
-        this.analyzePassword();
-        
-        // Select the password for easy copying
-        this.passwordInput.select();
-        
-        // Show notification
-        this.showToast('Strong password generated!');
-    }
-    
-    /**
-     * Show toast message
-     * @param message Message to show
-     */
-    private showToast(message: string): void {
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = 'toast-message fade-in';
-        toast.textContent = message;
-        
-        // Add styles
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #2a9d8f;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            font-weight: 500;
-            max-width: 300px;
-        `;
-        
-        // Add to page
-        document.body.appendChild(toast);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.3s ease';
-            
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    document.body.removeChild(toast);
-                }
-            }, 300);
-        }, 3000);
+    private async copy(value: string): Promise<void> { if (!value || value.includes('üretin')) return; await navigator.clipboard?.writeText(value); this.toast('Panoya kopyalandı'); }
+    private toast(message: string): void { const toast = document.createElement('div'); toast.className = 'toast-message'; toast.setAttribute('role', 'status'); toast.setAttribute('aria-live', 'polite'); toast.textContent = message; document.body.appendChild(toast); setTimeout(() => toast.remove(), 1800); }
+    private saveHistory(password: string): void { const history = [password, ...JSON.parse(localStorage.getItem('vaultcheck-history') || '[]')].slice(0, 5); localStorage.setItem('vaultcheck-history', JSON.stringify(history)); this.loadHistory(); }
+    private loadHistory(): void { const history = JSON.parse(localStorage.getItem('vaultcheck-history') || '[]') as string[]; $('historyList').innerHTML = history.length ? history.map(item => `<li>${item}</li>`).join('') : '<li>Henüz kayıt yok</li>'; }
+    private compare(): void { const other = this.compareInput.value; const result = other ? `Bu parola ${PasswordChecker.analyze(other).score >= this.currentAnalysis.score ? 'daha güçlü veya eşit' : 'daha zayıf'}.` : ''; $('compareResult').textContent = result; }
+    private async checkBreach(password: string): Promise<void> { if (!password) { $('privacyBadge').textContent = '● CİHAZDA'; return; } try { const data = new TextEncoder().encode(password); const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-1', data))).map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase(); const response = await fetch(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, { headers: { 'Add-Padding': 'true' } }); const found = (await response.text()).split('\n').some(line => line.startsWith(hash.slice(5))); $('privacyBadge').textContent = found ? '● BREACH BULUNDU' : '● TEMİZ GÖRÜNÜYOR'; } catch { $('privacyBadge').textContent = '● SADECE CİHAZDA'; } }
+    private translate(language: string): void { const text: Record<string, string> = { tr: 'Parolaları savunmaya dönüştür.', en: 'Turn passwords into defense.', de: 'Machen Sie Passwörter zur Verteidigung.', fr: 'Transformez les mots de passe en défense.', es: 'Convierte contraseñas en defensa.' }; document.querySelector('h1')!.innerHTML = text[language] || text.tr; }
+}
+
+class UIAdapter {
+    render(analysis: PasswordAnalysis, password: string): void {
+        const criteria = [{ key: 'length', text: 'En az 12 karakter' }, { key: 'hasLowercase', text: 'Küçük harf içeriyor' }, { key: 'hasUppercase', text: 'Büyük harf içeriyor' }, { key: 'hasNumbers', text: 'Rakam içeriyor' }, { key: 'hasSpecialChars', text: 'Özel karakter içeriyor' }, { key: 'noRepeatingChars', text: 'Tekrarlanan karakter yok' }, { key: 'notWeakPassword', text: 'Yaygın sözlükte yok' }, { key: 'noSequentialChars', text: 'Sıralı karakter yok' }];
+        $('criteriaList').innerHTML = criteria.map(item => `<li class="criteria-item"><span class="criteria-icon">${analysis.criteria[item.key as keyof typeof analysis.criteria] ? '✓' : '×'}</span><span>${item.text}</span></li>`).join('');
+        $('feedbackContent').innerHTML = analysis.feedback.map(item => `<div class="feedback-item"><span class="feedback-icon">•</span><span>${item}</span></div>`).join('');
+        $('suggestionsContent').innerHTML = analysis.suggestions.map(item => `<p>${item.replace('• ', '')}</p>`).join('');
+        if (!password) { $('feedbackContent').innerHTML = '<p class="initial-message">Parolanızı yazmaya başladığınızda analiz burada görünür.</p>'; $('suggestionsContent').innerHTML = '<p class="initial-message">Daha güçlü olmak için öneriler burada görünür.</p>'; }
     }
 }
 
-// Start the application
-const app = new PasswordStrengthCheckerApp();
-
-// Add to global scope for development
-declare global {
-    interface Window {
-        app: PasswordStrengthCheckerApp;
-    }
-}
-
-window.app = app;
+new VaultCheckApp();

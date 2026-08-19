@@ -3,36 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Password Strength Checker - Parola Güçlülük Analiz Aracı</title>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Tarayıcıda çalışan premium parola güvenlik analiz aracı.">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <title>VaultCheck | Parola Güvenliği</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
+    <div class="app-shell">
         <header class="header">
-            <h1><i class="fas fa-shield-alt"></i> Parola Güçlülük Analiz Aracı</h1>
-            <p class="subtitle">Parolanızın güvenlik seviyesini anında kontrol edin ve güvenliğinizi artırın</p>
+            <div class="brand"><span class="brand-mark">⌁</span><span>VAULTCHECK</span><span class="eyebrow">PRIVATE BY DESIGN</span></div>
+            <div class="header-actions"><label class="sr-only" for="languageSelect">Dil</label><select id="languageSelect"><option value="tr">TR</option><option value="en">EN</option><option value="de">DE</option><option value="fr">FR</option><option value="es">ES</option></select><button id="themeToggle" class="icon-button" type="button" aria-label="Temayı değiştir" aria-pressed="false">☼</button></div>
+            <h1>Parolaları <em>savunmaya</em> dönüştür.</h1>
+            <p class="subtitle">Güvenlik sinyallerini saniyeler içinde görün. Verileriniz tarayıcıdan çıkmaz.</p>
         </header>
 
         <main class="main-content">
-            <div class="password-input-container">
-                <div class="input-wrapper">
-                    <i class="fas fa-key icon-left"></i>
-                    <input type="password" id="passwordInput" placeholder="Parolanızı girin...">
+            <section class="hero-grid"><div class="password-input-container glass-card">
+                <div class="section-kicker">01 / ANALİZ</div><div class="field-label-row"><label for="passwordInput">Parolanızı test edin</label><span id="privacyBadge">● CİHAZDA</span></div>
+                <div class="input-wrapper" role="group" aria-label="Parola girişi">
+                    <span class="icon-left">⌘</span>
+                    <input type="password" id="passwordInput" placeholder="Parolanızı girin..." autocomplete="new-password" aria-describedby="privacyBadge">
                     <button type="button" id="togglePassword" class="toggle-password-btn" aria-label="Parolayı göster/gizle">
-                        <i class="fas fa-eye"></i>
+                        GÖSTER
                     </button>
                 </div>
-                <div class="input-hint">
-                    <i class="fas fa-info-circle"></i> Parolanızı yazmaya başlayın, analiz otomatik olarak başlayacaktır
-                </div>
+                <div class="input-actions"><button type="button" id="copyPassword" class="secondary-button">Kopyala</button><button type="button" id="generatePassword" class="primary-button">Yeni parola üret <span>↗</span></button></div>
             </div>
 
-            <div class="strength-container">
+            <div class="strength-container glass-card">
+                <div class="section-kicker">GÜVENLİK SKORU</div>
                 <div class="strength-header">
-                    <h2>Parola Güç Seviyesi</h2>
-                    <div class="score-display">
+                    <h2 id="strengthLevel">Değerlendiriliyor...</h2>
+                    <div class="score-display" aria-live="polite" aria-atomic="true">
                         <span id="scoreValue">0</span><span>/100</span>
                     </div>
                 </div>
@@ -41,49 +46,38 @@
                     <div class="strength-bar" id="strengthBar"></div>
                 </div>
                 
-                <div class="strength-label">
-                    <span id="strengthLevel">Değerlendiriliyor...</span>
-                </div>
+                <div class="metric-row" aria-live="polite"><span>Entropy</span><strong id="entropyValue">0 bits</strong><span>Break time</span><strong id="timeToCrack">Bekliyor</strong></div>
             </div>
+            </section>
+
+            <section class="generator-panel glass-card" aria-labelledby="generatorTitle"><div><div class="section-kicker">02 / GENERATOR PRO</div><h2 id="generatorTitle">Kendi savunma setini kur.</h2></div><div><div class="generator-controls"><label>Uzunluk <output id="lengthValue">18</output><input id="lengthRange" type="range" min="8" max="40" value="18"></label><label><input id="lowercaseOption" type="checkbox" checked> a-z</label><label><input id="uppercaseOption" type="checkbox" checked> A-Z</label><label><input id="numbersOption" type="checkbox" checked> 0-9</label><label><input id="symbolsOption" type="checkbox" checked> Semboller</label><button id="regeneratePassword" class="secondary-button" type="button">Yeniden oluştur ↻</button></div><div class="generated-output"><code id="generatedPassword">Güvenli bir parola üretin</code><button id="copyGenerated" class="icon-button" type="button" aria-label="Üretilen parolayı kopyala">⧉</button></div></div></section>
 
             <div class="analysis-container">
-                <div class="criteria-section">
-                    <h3><i class="fas fa-check-circle"></i> Güvenlik Kriterleri</h3>
+                <div class="criteria-section glass-card"><h3>Güvenlik sinyalleri</h3>
                     <ul class="criteria-list" id="criteriaList">
                         <!-- Kriterler buraya dinamik olarak eklenecek -->
                     </ul>
                 </div>
 
-                <div class="feedback-section">
-                    <h3><i class="fas fa-comment-dots"></i> Analiz Sonuçları</h3>
-                    <div class="feedback-content" id="feedbackContent">
+                <div class="feedback-section glass-card"><h3>Analiz özeti</h3>
+                    <div class="feedback-content" id="feedbackContent" aria-live="polite" aria-atomic="false">
                         <p class="initial-message">Parolanızı girmeye başladığınızda detaylı analiz sonuçları burada görünecektir.</p>
                     </div>
                 </div>
 
-                <div class="suggestions-section">
-                    <h3><i class="fas fa-lightbulb"></i> Güvenlik Önerileri</h3>
-                    <div class="suggestions-content" id="suggestionsContent">
+                <div class="suggestions-section glass-card"><h3>Bir sonraki hamle</h3>
+                    <div class="suggestions-content" id="suggestionsContent" aria-live="polite" aria-atomic="false">
                         <p class="initial-message">Parolanız analiz edildikten sonra güvenliği artırmak için öneriler burada görünecektir.</p>
                     </div>
                 </div>
             </div>
 
-            <div class="advanced-features">
-                <button type="button" id="generatePassword" class="btn-generate">
-                    <i class="fas fa-random"></i> Güçlü Parola Oluştur
-                </button>
-                
-                <div class="time-to-crack">
-                    <h4><i class="fas fa-clock"></i> Tahmini Kırılma Süresi</h4>
-                    <p id="timeToCrack">Parola girmediniz</p>
-                </div>
-            </div>
+            <section class="utility-grid"><div class="glass-card utility-card"><div class="section-kicker">KARŞILAŞTIRMA</div><h3>İki parolayı yan yana gör.</h3><button id="compareToggle" class="secondary-button" type="button">Karşılaştırma modunu aç</button><div id="comparePanel" class="compare-panel" hidden><input id="compareInput" type="password" placeholder="İkinci parola"><p id="compareResult"></p></div></div><div class="glass-card utility-card"><div class="section-kicker">REHBER</div><h3>Güçlü parola için 3 kısa adım.</h3><ol><li>Uzun bir parola cümlesi seç.</li><li>Her hesapta benzersiz kullan.</li><li>Yöneticinle güvenle sakla.</li></ol></div><div class="glass-card utility-card"><div class="section-kicker">GEÇMİŞ</div><h3>Son üretilenler</h3><ul id="historyList" class="history-list"><li>Henüz kayıt yok</li></ul></div></section>
         </main>
 
         <footer class="footer">
-            <p>Bu araç tamamen tarayıcınızda çalışır. Parolanız hiçbir sunucuya gönderilmez veya kaydedilmez.</p>
-            <p class="copyright">© 2025 Password Strength Checker | Geliştirici Kalitesinde Güvenlik Analizi</p>
+            <p>Analiz cihazınızda gerçekleşir. Data breach kontrolü için yalnızca SHA-1 prefix gönderilir; parolanın kendisi asla gönderilmez.</p>
+            <p class="copyright">© 2026 VaultCheck · Offline-ready</p>
         </footer>
     </div>
 
