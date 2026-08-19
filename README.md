@@ -8,8 +8,6 @@
 [![Vite](https://img.shields.io/badge/Vite-5.0-646cff?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![WCAG 2.1 AA](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-green?style=flat-square)](https://www.w3.org/WAI/standards-guidelines/wcag/)
 
-![Screenshot](https://via.placeholder.com/1200x600.png?text=Password+Strength+Checker+UI)
-
 ---
 
 ## ✨ Özellikler
